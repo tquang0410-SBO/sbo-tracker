@@ -1,0 +1,1596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SBO Visit Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --navy:   #0D1B2A;
+    --blue:   #1B6CA8;
+    --steel:  #2E86AB;
+    --accent: #F59E0B;
+    --green:  #16A34A;
+    --red:    #DC2626;
+    --bg:     #F8FAFC;
+    --card:   #FFFFFF;
+    --border: #E2E8F0;
+    --text:   #1E293B;
+    --muted:  #64748B;
+    --light:  #F1F5F9;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--navy);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .header-logo {
+    width: 28px; height: 28px;
+    background: var(--accent);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; color: var(--navy); font-size: 13px;
+    font-family: 'DM Mono', monospace;
+  }
+  .header-title {
+    color: #fff;
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+  }
+  .header-sub {
+    color: #7FAFCC;
+    font-size: 12px;
+    margin-top: 1px;
+  }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .auth-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: transparent;
+    color: #fff;
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .auth-btn:hover { background: rgba(255,255,255,0.08); }
+  .auth-btn.signed-in { border-color: var(--accent); color: var(--accent); }
+  .auth-btn svg { width: 16px; height: 16px; }
+
+  /* ── NAV TABS ── */
+  .nav {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    gap: 4px;
+  }
+  .nav-tab {
+    padding: 14px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    white-space: nowrap;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .nav-tab:hover { color: var(--text); }
+  .nav-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+  /* ── LAYOUT ── */
+  .main { padding: 24px; max-width: 1100px; margin: 0 auto; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title svg { width:16px; height:16px; color: var(--blue); }
+
+  /* ── SUMMARY STRIP ── */
+  .summary-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .stat {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; }
+  .stat-value { font-size: 24px; font-weight: 600; color: var(--navy); font-family: 'DM Mono', monospace; }
+  .stat-value.green { color: var(--green); }
+  .stat-value.amber { color: var(--accent); }
+  .stat-value.blue  { color: var(--blue); }
+
+  /* ── TABLE ── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    background: var(--light);
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #FAFBFC; }
+
+  /* ── BADGES ── */
+  .badge {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge-confirmed { background: #DCFCE7; color: #15803D; }
+  .badge-pending   { background: #FEF3C7; color: #B45309; }
+  .badge-tbc       { background: #F1F5F9; color: #475569; }
+  .badge-completed { background: #DBEAFE; color: #1D4ED8; }
+  .badge-open      { background: #FEE2E2; color: #B91C1C; }
+  .badge-done      { background: #DCFCE7; color: #15803D; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 16px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: none;
+  }
+  .btn svg { width: 15px; height: 15px; }
+  .btn-primary { background: var(--blue); color: #fff; }
+  .btn-primary:hover { background: #155d91; }
+  .btn-secondary { background: var(--light); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: var(--border); }
+  .btn-danger { background: #FEE2E2; color: var(--red); }
+  .btn-danger:hover { background: #FECACA; }
+  .btn-accent { background: var(--accent); color: var(--navy); font-weight: 600; }
+  .btn-accent:hover { background: #D97706; }
+  .btn-sm { padding: 5px 11px; font-size: 12px; }
+  .btn-ghost { background: transparent; color: var(--blue); padding: 5px 8px; font-size: 12px; }
+  .btn-ghost:hover { background: #EFF6FF; }
+
+  /* ── FORM ── */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+  label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  input, select, textarea {
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text);
+    background: var(--card);
+    transition: border-color 0.15s;
+    width: 100%;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(27,108,168,0.08);
+  }
+  textarea { resize: vertical; min-height: 80px; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(13,27,42,0.55);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 28px;
+    width: 100%;
+    max-width: 680px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 22px;
+  }
+  .modal-title { font-size: 16px; font-weight: 600; color: var(--navy); }
+  .modal-close {
+    width: 32px; height: 32px;
+    border-radius: 6px;
+    background: var(--light);
+    border: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted);
+    font-size: 18px;
+    line-height: 1;
+  }
+  .modal-close:hover { background: var(--border); }
+  .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border); }
+
+  /* ── HISTORY TIMELINE ── */
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .timeline-item {
+    display: flex;
+    gap: 16px;
+    padding-bottom: 20px;
+    position: relative;
+  }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: 19px; top: 32px;
+    width: 2px;
+    height: calc(100% - 12px);
+    background: var(--border);
+  }
+  .timeline-item:last-child::before { display: none; }
+  .timeline-dot {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--blue);
+    border: 3px solid var(--card);
+    box-shadow: 0 0 0 2px var(--blue);
+    flex-shrink: 0;
+    margin-top: 8px;
+    z-index: 1;
+  }
+  .timeline-content { flex: 1; }
+  .timeline-date { font-size: 11px; color: var(--muted); margin-bottom: 4px; font-family: 'DM Mono', monospace; }
+  .timeline-body {
+    background: var(--light);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+  .timeline-section { margin-bottom: 8px; }
+  .timeline-section:last-child { margin-bottom: 0; }
+  .timeline-section-label { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 3px; }
+
+  /* ── ACTION ITEMS ── */
+  .action-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    margin-bottom: 8px;
+    background: var(--card);
+  }
+  .action-check {
+    width: 18px; height: 18px;
+    border-radius: 4px;
+    border: 2px solid var(--border);
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-top: 1px;
+    background: var(--card);
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .action-check.done { background: var(--green); border-color: var(--green); }
+  .action-check.done::after { content: '✓'; color: #fff; font-size: 11px; font-weight: 700; }
+  .action-text { flex: 1; font-size: 13px; }
+  .action-text.done-text { text-decoration: line-through; color: var(--muted); }
+  .action-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ── EMPTY STATE ── */
+  .empty {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--muted);
+  }
+  .empty svg { width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.3; }
+  .empty p { font-size: 14px; }
+
+  /* ── SECTION HEADER ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .section-title { font-size: 15px; font-weight: 600; color: var(--navy); }
+
+  /* ── SYNC STATUS ── */
+  .sync-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--light);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+  .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
+  .sync-dot.connected { background: var(--green); }
+  .sync-dot.syncing { background: var(--accent); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ── ACCOUNT SELECTOR ── */
+  .account-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 99px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin: 3px;
+  }
+  .account-pill:hover { border-color: var(--blue); color: var(--blue); }
+  .account-pill.active { border-color: var(--blue); background: #EFF6FF; color: var(--blue); font-weight: 500; }
+
+  /* ── DIVIDER ── */
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 600px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .main { padding: 16px; }
+    .header { padding: 0 16px; }
+    .nav { padding: 0 12px; overflow-x: auto; }
+  }
+
+  .hidden { display: none !important; }
+  .text-muted { color: var(--muted); font-size: 12px; }
+  .mt-4 { margin-top: 4px; }
+  .mt-12 { margin-top: 12px; }
+  .gap-8 { gap: 8px; }
+  .flex { display: flex; }
+  .flex-wrap { flex-wrap: wrap; }
+  .items-center { align-items: center; }
+  .justify-between { justify-content: space-between; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-brand">
+    <div class="header-logo">SBO</div>
+    <div>
+      <div class="header-title">Visit Tracker</div>
+      <div class="header-sub">BD Manager — Quang Nguyen</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <button class="auth-btn" id="authBtn" onclick="toggleAuth()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span id="authBtnText">Sign in with SBO</span>
+    </button>
+  </div>
+</header>
+
+<!-- NAV -->
+<nav class="nav">
+  <button class="nav-tab active" onclick="showTab('dashboard')">Dashboard</button>
+  <button class="nav-tab" onclick="showTab('accounts')">Accounts</button>
+  <button class="nav-tab" onclick="showTab('schedule')">Visit Schedule</button>
+  <button class="nav-tab" onclick="showTab('actions')">Open Actions</button>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- SYNC BAR -->
+  <div class="sync-bar" id="syncBar">
+    <div class="sync-dot" id="syncDot"></div>
+    <span id="syncText">Not connected to OneDrive — data stored locally. Sign in to sync.</span>
+    <div style="margin-left:auto;">
+      <button class="btn btn-secondary btn-sm" onclick="exportExcel()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export Excel for Paul
+      </button>
+    </div>
+  </div>
+
+  <!-- TAB: DASHBOARD -->
+  <div id="tab-dashboard">
+    <div class="summary-strip" id="summaryStrip"></div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+      <!-- Upcoming visits -->
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Upcoming Visits
+        </div>
+        <div id="upcomingVisits"></div>
+      </div>
+
+      <!-- Open actions -->
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          Open Actions
+        </div>
+        <div id="dashActions"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: ACCOUNTS -->
+  <div id="tab-accounts" class="hidden">
+    <div class="section-header">
+      <div class="section-title">Account Database</div>
+      <button class="btn btn-primary" onclick="openModal('addAccount')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Account
+      </button>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Industry</th>
+              <th>Location</th>
+              <th>Key Contact</th>
+              <th>Title</th>
+              <th>Last Visit</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="accountsTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: VISIT SCHEDULE -->
+  <div id="tab-schedule" class="hidden">
+    <div class="section-header">
+      <div class="section-title">Visit Schedule & History</div>
+      <div class="flex gap-8">
+        <button class="btn btn-secondary" onclick="openModal('postVisit')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          Post-Visit Report
+        </button>
+        <button class="btn btn-primary" onclick="openModal('addVisit')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Plan a Visit
+        </button>
+      </div>
+    </div>
+
+    <!-- Account filter -->
+    <div class="card" style="padding: 14px 20px; margin-bottom: 16px;">
+      <div style="font-size:12px; font-weight:600; color:var(--muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.6px;">Filter by Account</div>
+      <div id="accountFilter" style="display:flex; flex-wrap:wrap;"></div>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Company</th>
+              <th>Contact</th>
+              <th>Purpose</th>
+              <th>Status</th>
+              <th>History / Report</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="visitsTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: OPEN ACTIONS -->
+  <div id="tab-actions" class="hidden">
+    <div class="section-header">
+      <div class="section-title">Open Actions Tracker</div>
+      <div style="font-size:13px; color:var(--muted);">Actions from all post-visit reports that are still pending</div>
+    </div>
+    <div class="card">
+      <div id="actionsBoard"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     MODALS
+═══════════════════════════════════════════════════ -->
+
+<!-- Add Account -->
+<div id="modal-addAccount" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add Account</div>
+      <button class="modal-close" onclick="closeModal('addAccount')">×</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label>Company Name *</label><input id="ac-company" placeholder="e.g. Baker Hughes Vietnam"></div>
+      <div class="form-group"><label>Industry</label>
+        <select id="ac-industry">
+          <option>Oil & Gas — Operator</option>
+          <option>Oil & Gas — Service Company</option>
+          <option>EPC / Contractor</option>
+          <option>Trading / Distribution</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Location</label><input id="ac-location" placeholder="e.g. HCMC / Vung Tau / Hanoi"></div>
+      <div class="form-group"><label>Account Status</label>
+        <select id="ac-status">
+          <option>Active</option>
+          <option>Warm — reactivate</option>
+          <option>New — prospect</option>
+          <option>On Hold</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Key Contact Name</label><input id="ac-contact" placeholder="Mr. / Ms. [Name]"></div>
+      <div class="form-group"><label>Title / Department</label><input id="ac-title" placeholder="e.g. Procurement Manager"></div>
+      <div class="form-group"><label>Phone</label><input id="ac-phone" placeholder="+84..."></div>
+      <div class="form-group"><label>Email</label><input id="ac-email" placeholder="name@company.com"></div>
+      <div class="form-group full"><label>Notes</label><textarea id="ac-notes" placeholder="Background, relationship history, SBO products they use..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('addAccount')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAccount()">Save Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- Plan a Visit -->
+<div id="modal-addVisit" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Plan a Visit</div>
+      <button class="modal-close" onclick="closeModal('addVisit')">×</button>
+    </div>
+
+    <!-- Account history preview -->
+    <div id="visitHistoryPreview" class="hidden" style="background:var(--light); border-radius:8px; padding:14px; margin-bottom:18px;">
+      <div style="font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.6px; margin-bottom:10px;">Previous Visit History for this Account</div>
+      <div id="visitHistoryContent"></div>
+    </div>
+
+    <!-- Open actions preview -->
+    <div id="openActionsPreview" class="hidden" style="background:#FEF3C7; border-radius:8px; padding:14px; margin-bottom:18px; border:1px solid #FDE68A;">
+      <div style="font-size:11px; font-weight:600; color:#92400E; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:8px;">⚠ Pending Actions to Follow Up</div>
+      <div id="openActionsContent"></div>
+    </div>
+
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Account *</label>
+        <select id="v-account" onchange="loadAccountContext(this.value)">
+          <option value="">— Select account —</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Visit Date *</label><input type="date" id="v-date"></div>
+      <div class="form-group"><label>Time</label><input type="time" id="v-time"></div>
+      <div class="form-group"><label>Contact Name</label><input id="v-contact" placeholder="Mr. / Ms. [Name]"></div>
+      <div class="form-group"><label>Contact Title</label><input id="v-ctitle" placeholder="Procurement Manager"></div>
+      <div class="form-group full"><label>Visit Purpose</label><input id="v-purpose" placeholder="e.g. Reactivate account / AVL qualification / FA follow-up"></div>
+      <div class="form-group full"><label>Primary Objective</label><textarea id="v-obj1" placeholder="What is the #1 outcome you want from this visit?"></textarea></div>
+      <div class="form-group full"><label>Secondary Objective</label><textarea id="v-obj2" placeholder="Intel to gather, relationships to strengthen..."></textarea></div>
+      <div class="form-group full"><label>Meeting Agenda Notes</label><textarea id="v-agenda" placeholder="Key topics to cover, SBO products to highlight, questions to ask..."></textarea></div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="v-status">
+          <option>Confirmed</option>
+          <option>Pending</option>
+          <option>TBC</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('addVisit')">Cancel</button>
+      <button class="btn btn-accent" onclick="exportVisitBrief()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export Brief for Paul
+      </button>
+      <button class="btn btn-primary" onclick="saveVisit()">Save Visit Plan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Post-Visit Report -->
+<div id="modal-postVisit" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Post-Visit Report</div>
+      <button class="modal-close" onclick="closeModal('postVisit')">×</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Account *</label>
+        <select id="pv-account">
+          <option value="">— Select account —</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Visit Date *</label><input type="date" id="pv-date"></div>
+      <div class="form-group"><label>Contact Met</label><input id="pv-contact" placeholder="Name / Title"></div>
+      <div class="form-group full"><label>Key Discussion Points</label><textarea id="pv-discussion" placeholder="Main topics discussed, customer pain points, budget/timeline signals..."></textarea></div>
+      <div class="form-group full"><label>Customer Intel</label><textarea id="pv-intel" placeholder="Upcoming projects/tenders, competitor presence, AVL/vendor preference status..."></textarea></div>
+      <div class="form-group full"><label>Opportunities Identified</label><textarea id="pv-opportunities" placeholder="Specific product/service opportunity, estimated timeline, decision maker..."></textarea></div>
+      <div class="form-group full">
+        <label>Next Actions (one per line — format: Action | Owner | Due Date)</label>
+        <textarea id="pv-actions" placeholder="Follow up with quotation for drill collars | Quang | 30 May&#10;Send SBO capability deck | Quang | 25 May&#10;Confirm AVL submission requirements | Customer | TBC"></textarea>
+      </div>
+      <div class="form-group full"><label>Overall Assessment</label>
+        <select id="pv-rating">
+          <option>🟢 Strong — clear opportunity, positive signals</option>
+          <option>🟡 Neutral — needs further development</option>
+          <option>🔴 Weak — low priority for now</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('postVisit')">Cancel</button>
+      <button class="btn btn-primary" onclick="savePostVisit()">Save Report</button>
+    </div>
+  </div>
+</div>
+
+<!-- Account Detail / History -->
+<div id="modal-accountDetail" class="modal-overlay hidden">
+  <div class="modal" style="max-width:780px;">
+    <div class="modal-header">
+      <div class="modal-title" id="detailTitle">Account History</div>
+      <button class="modal-close" onclick="closeModal('accountDetail')">×</button>
+    </div>
+    <div id="detailContent"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('accountDetail')">Close</button>
+      <button class="btn btn-primary" onclick="planVisitFromDetail()">Plan Next Visit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════
+const CLIENT_ID = 'b54e6605-9d93-453b-b713-f92e91ad1d3f';
+const TENANT_ID = '9806a673-17c5-4338-864d-4cf723fc55be';
+const SCOPES = ['Files.ReadWrite', 'User.Read'];
+const DATA_FILE = 'sbo_visit_tracker_data.json';
+const REDIRECT_URI = window.location.href.split('?')[0].split('#')[0];
+
+// ═══════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════
+let state = {
+  accounts: [],
+  visits: [],
+  reports: []
+};
+
+let authState = {
+  isSignedIn: false,
+  accessToken: null,
+  userName: '',
+  fileId: null
+};
+
+let activeAccountFilter = null;
+let detailAccountId = null;
+
+// ═══════════════════════════════════════════════════
+// DATA PERSISTENCE
+// ═══════════════════════════════════════════════════
+function saveLocal() {
+  localStorage.setItem('sbo_visit_tracker', JSON.stringify(state));
+}
+
+function loadLocal() {
+  const raw = localStorage.getItem('sbo_visit_tracker');
+  if (raw) {
+    try { state = JSON.parse(raw); } catch(e) {}
+  }
+}
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+}
+
+// ═══════════════════════════════════════════════════
+// MICROSOFT AUTH (PKCE implicit-compatible)
+// ═══════════════════════════════════════════════════
+async function toggleAuth() {
+  if (authState.isSignedIn) {
+    signOut();
+  } else {
+    signIn();
+  }
+}
+
+function signIn() {
+  const authUrl = `https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/authorize`
+    + `?client_id=${CLIENT_ID}`
+    + `&response_type=token`
+    + `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`
+    + `&scope=${encodeURIComponent(SCOPES.join(' '))}`
+    + `&response_mode=fragment`
+    + `&prompt=select_account`;
+  window.location.href = authUrl;
+}
+
+function signOut() {
+  authState = { isSignedIn: false, accessToken: null, userName: '', fileId: null };
+  localStorage.removeItem('sbo_access_token');
+  updateAuthUI();
+  updateSyncBar('local');
+}
+
+function parseTokenFromHash() {
+  const hash = window.location.hash.substr(1);
+  if (!hash) return;
+  const params = {};
+  hash.split('&').forEach(p => {
+    const [k, v] = p.split('=');
+    params[k] = decodeURIComponent(v || '');
+  });
+  if (params.access_token) {
+    authState.accessToken = params.access_token;
+    authState.isSignedIn = true;
+    localStorage.setItem('sbo_access_token', params.access_token);
+    window.history.replaceState({}, document.title, window.location.pathname);
+    getUserInfo();
+    syncWithOneDrive();
+  }
+}
+
+function restoreToken() {
+  const t = localStorage.getItem('sbo_access_token');
+  if (t) {
+    authState.accessToken = t;
+    authState.isSignedIn = true;
+    getUserInfo();
+    syncWithOneDrive();
+  }
+}
+
+async function getUserInfo() {
+  try {
+    const res = await fetch('https://graph.microsoft.com/v1.0/me', {
+      headers: { Authorization: `Bearer ${authState.accessToken}` }
+    });
+    if (!res.ok) throw new Error('Token expired');
+    const data = await res.json();
+    authState.userName = data.displayName || data.userPrincipalName;
+    updateAuthUI();
+  } catch(e) {
+    signOut();
+  }
+}
+
+function updateAuthUI() {
+  const btn = document.getElementById('authBtn');
+  const txt = document.getElementById('authBtnText');
+  if (authState.isSignedIn) {
+    btn.classList.add('signed-in');
+    txt.textContent = authState.userName || 'Signed in';
+  } else {
+    btn.classList.remove('signed-in');
+    txt.textContent = 'Sign in with SBO';
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// ONEDRIVE SYNC
+// ═══════════════════════════════════════════════════
+function updateSyncBar(mode, msg) {
+  const dot = document.getElementById('syncDot');
+  const txt = document.getElementById('syncText');
+  if (mode === 'connected') {
+    dot.className = 'sync-dot connected';
+    txt.textContent = msg || `Connected to OneDrive — ${authState.userName}. Data auto-saves.`;
+  } else if (mode === 'syncing') {
+    dot.className = 'sync-dot syncing';
+    txt.textContent = 'Syncing with OneDrive...';
+  } else {
+    dot.className = 'sync-dot';
+    txt.textContent = 'Not connected to OneDrive — data stored locally. Sign in to sync.';
+  }
+}
+
+async function syncWithOneDrive() {
+  if (!authState.isSignedIn) return;
+  updateSyncBar('syncing');
+  try {
+    // Try to find existing file
+    const searchRes = await fetch(
+      `https://graph.microsoft.com/v1.0/me/drive/root:/SBO_BD/${DATA_FILE}`,
+      { headers: { Authorization: `Bearer ${authState.accessToken}` } }
+    );
+    if (searchRes.ok) {
+      const meta = await searchRes.json();
+      authState.fileId = meta.id;
+      // Download and merge
+      const dlRes = await fetch(
+        `https://graph.microsoft.com/v1.0/me/drive/items/${meta.id}/content`,
+        { headers: { Authorization: `Bearer ${authState.accessToken}` } }
+      );
+      if (dlRes.ok) {
+        const remote = await dlRes.json();
+        // Merge: remote is source of truth if newer
+        state = remote;
+        saveLocal();
+      }
+    } else {
+      // File doesn't exist yet — will be created on first save
+    }
+    updateSyncBar('connected');
+    renderAll();
+  } catch(e) {
+    updateSyncBar('local', 'OneDrive sync failed — working offline.');
+  }
+}
+
+async function pushToOneDrive() {
+  if (!authState.isSignedIn) { saveLocal(); return; }
+  updateSyncBar('syncing');
+  try {
+    const body = JSON.stringify(state);
+    const res = await fetch(
+      `https://graph.microsoft.com/v1.0/me/drive/root:/SBO_BD/${DATA_FILE}:/content`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${authState.accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body
+      }
+    );
+    if (res.ok) {
+      const meta = await res.json();
+      authState.fileId = meta.id;
+      updateSyncBar('connected');
+    } else {
+      throw new Error('Upload failed');
+    }
+  } catch(e) {
+    updateSyncBar('local', 'Sync failed — saved locally.');
+  }
+  saveLocal();
+}
+
+async function save() {
+  saveLocal();
+  await pushToOneDrive();
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════
+function showTab(name) {
+  document.querySelectorAll('.nav-tab').forEach((t, i) => {
+    const tabs = ['dashboard','accounts','schedule','actions'];
+    t.classList.toggle('active', tabs[i] === name);
+  });
+  ['dashboard','accounts','schedule','actions'].forEach(t => {
+    document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== name);
+  });
+  if (name === 'schedule') renderAccountFilter();
+}
+
+// ═══════════════════════════════════════════════════
+// MODALS
+// ═══════════════════════════════════════════════════
+function openModal(name) {
+  if (name === 'addVisit' || name === 'postVisit') populateAccountDropdowns();
+  document.getElementById(`modal-${name}`).classList.remove('hidden');
+}
+
+function closeModal(name) {
+  document.getElementById(`modal-${name}`).classList.add('hidden');
+}
+
+// ═══════════════════════════════════════════════════
+// ACCOUNTS
+// ═══════════════════════════════════════════════════
+function saveAccount() {
+  const company = document.getElementById('ac-company').value.trim();
+  if (!company) { alert('Company name required'); return; }
+  const acc = {
+    id: uid(),
+    company,
+    industry: document.getElementById('ac-industry').value,
+    location: document.getElementById('ac-location').value,
+    status: document.getElementById('ac-status').value,
+    contact: document.getElementById('ac-contact').value,
+    title: document.getElementById('ac-title').value,
+    phone: document.getElementById('ac-phone').value,
+    email: document.getElementById('ac-email').value,
+    notes: document.getElementById('ac-notes').value,
+    createdAt: new Date().toISOString()
+  };
+  state.accounts.push(acc);
+  save();
+  closeModal('addAccount');
+  // Clear
+  ['ac-company','ac-location','ac-contact','ac-title','ac-phone','ac-email','ac-notes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+}
+
+function renderAccounts() {
+  const tb = document.getElementById('accountsTable');
+  if (!state.accounts.length) {
+    tb.innerHTML = `<tr><td colspan="8"><div class="empty"><p>No accounts yet. Add your first account.</p></div></td></tr>`;
+    return;
+  }
+  tb.innerHTML = state.accounts.map(a => {
+    const visits = state.visits.filter(v => v.accountId === a.id);
+    const lastVisit = visits.sort((x,y) => new Date(y.date) - new Date(x.date))[0];
+    const statusClass = {
+      'Active': 'badge-confirmed',
+      'Warm — reactivate': 'badge-pending',
+      'New — prospect': 'badge-tbc',
+      'On Hold': 'badge-open'
+    }[a.status] || 'badge-tbc';
+    return `<tr>
+      <td><strong>${a.company}</strong></td>
+      <td><span class="text-muted">${a.industry}</span></td>
+      <td>${a.location || '—'}</td>
+      <td>${a.contact || '—'}</td>
+      <td><span class="text-muted">${a.title || '—'}</span></td>
+      <td style="font-family:'DM Mono',monospace; font-size:12px;">${lastVisit ? formatDate(lastVisit.date) : '—'}</td>
+      <td><span class="badge ${statusClass}">${a.status}</span></td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="viewAccountDetail('${a.id}')">History</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function populateAccountDropdowns() {
+  ['v-account','pv-account'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— Select account —</option>'
+      + state.accounts.map(a => `<option value="${a.id}">${a.company}</option>`).join('');
+    if (cur) sel.value = cur;
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// VISIT CONTEXT LOADER (key feature)
+// ═══════════════════════════════════════════════════
+function loadAccountContext(accountId) {
+  const histDiv = document.getElementById('visitHistoryPreview');
+  const actDiv  = document.getElementById('openActionsPreview');
+  const histContent = document.getElementById('visitHistoryContent');
+  const actContent  = document.getElementById('openActionsContent');
+
+  // Pre-fill contact from account
+  const acc = state.accounts.find(a => a.id === accountId);
+  if (acc) {
+    document.getElementById('v-contact').value = acc.contact || '';
+    document.getElementById('v-ctitle').value = acc.title || '';
+  }
+
+  // Past reports for this account
+  const reports = state.reports
+    .filter(r => r.accountId === accountId)
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  if (reports.length) {
+    histDiv.classList.remove('hidden');
+    histContent.innerHTML = reports.slice(0, 3).map(r => `
+      <div style="margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid var(--border);">
+        <div style="font-size:11px; color:var(--muted); font-family:'DM Mono',monospace; margin-bottom:4px;">${formatDate(r.date)} — ${r.contact || ''} ${r.rating ? ' — ' + r.rating : ''}</div>
+        ${r.discussion ? `<div style="font-size:12px; margin-bottom:3px;"><strong>Discussion:</strong> ${r.discussion}</div>` : ''}
+        ${r.intel ? `<div style="font-size:12px; margin-bottom:3px;"><strong>Intel:</strong> ${r.intel}</div>` : ''}
+        ${r.opportunities ? `<div style="font-size:12px;"><strong>Opportunities:</strong> ${r.opportunities}</div>` : ''}
+      </div>`).join('');
+  } else {
+    histDiv.classList.add('hidden');
+  }
+
+  // Open actions for this account
+  const openActions = (state.reports
+    .filter(r => r.accountId === accountId)
+    .flatMap(r => (r.actions || []).map(ac => ({ ...ac, reportDate: r.date }))))
+    .filter(ac => !ac.done);
+
+  if (openActions.length) {
+    actDiv.classList.remove('hidden');
+    actContent.innerHTML = openActions.map(ac =>
+      `<div style="font-size:12px; padding:5px 0; border-bottom:1px solid #FDE68A; color:#78350F;">
+        ▸ ${ac.text}${ac.owner ? ` <span style="color:#A16207;">(${ac.owner})</span>` : ''}${ac.due ? ` — <em>${ac.due}</em>` : ''}
+      </div>`
+    ).join('');
+  } else {
+    actDiv.classList.add('hidden');
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// VISITS
+// ═══════════════════════════════════════════════════
+function saveVisit() {
+  const accountId = document.getElementById('v-account').value;
+  const date      = document.getElementById('v-date').value;
+  if (!accountId || !date) { alert('Account and date required'); return; }
+  const visit = {
+    id: uid(),
+    accountId,
+    date,
+    time: document.getElementById('v-time').value,
+    contact: document.getElementById('v-contact').value,
+    ctitle: document.getElementById('v-ctitle').value,
+    purpose: document.getElementById('v-purpose').value,
+    obj1: document.getElementById('v-obj1').value,
+    obj2: document.getElementById('v-obj2').value,
+    agenda: document.getElementById('v-agenda').value,
+    status: document.getElementById('v-status').value,
+    createdAt: new Date().toISOString()
+  };
+  state.visits.push(visit);
+  save();
+  closeModal('addVisit');
+  clearVisitForm();
+}
+
+function clearVisitForm() {
+  ['v-contact','v-ctitle','v-purpose','v-obj1','v-obj2','v-agenda','v-date','v-time'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('v-account').value = '';
+  document.getElementById('visitHistoryPreview').classList.add('hidden');
+  document.getElementById('openActionsPreview').classList.add('hidden');
+}
+
+function renderVisits() {
+  const tb = document.getElementById('visitsTable');
+  let visits = [...state.visits].sort((a,b) => new Date(a.date) - new Date(b.date));
+  if (activeAccountFilter) visits = visits.filter(v => v.accountId === activeAccountFilter);
+
+  if (!visits.length) {
+    tb.innerHTML = `<tr><td colspan="7"><div class="empty"><p>No visits planned yet.</p></div></td></tr>`;
+    return;
+  }
+
+  tb.innerHTML = visits.map(v => {
+    const acc = state.accounts.find(a => a.id === v.accountId);
+    const report = state.reports.find(r => r.accountId === v.accountId && r.date === v.date);
+    const statusClass = {
+      Confirmed: 'badge-confirmed', Pending: 'badge-pending', TBC: 'badge-tbc', Completed: 'badge-completed'
+    }[v.status] || 'badge-tbc';
+    return `<tr>
+      <td style="font-family:'DM Mono',monospace; font-size:12px;">${formatDate(v.date)}${v.time ? '<br><span class="text-muted">'+v.time+'</span>' : ''}</td>
+      <td><strong>${acc ? acc.company : '—'}</strong></td>
+      <td>${v.contact || '—'}<br><span class="text-muted">${v.ctitle || ''}</span></td>
+      <td>${v.purpose || '—'}</td>
+      <td><span class="badge ${statusClass}">${v.status}</span></td>
+      <td>
+        ${report
+          ? `<button class="btn btn-ghost btn-sm" onclick="viewAccountDetail('${v.accountId}')">View Report</button>`
+          : `<button class="btn btn-ghost btn-sm" style="color:var(--accent);" onclick="prefillPostVisit('${v.accountId}','${v.date}')">Add Report</button>`}
+      </td>
+      <td><button class="btn btn-ghost btn-sm" onclick="deleteVisit('${v.id}')">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function deleteVisit(id) {
+  if (!confirm('Delete this visit?')) return;
+  state.visits = state.visits.filter(v => v.id !== id);
+  save();
+}
+
+function prefillPostVisit(accountId, date) {
+  populateAccountDropdowns();
+  document.getElementById('pv-account').value = accountId;
+  document.getElementById('pv-date').value = date;
+  openModal('postVisit');
+}
+
+function renderAccountFilter() {
+  const container = document.getElementById('accountFilter');
+  container.innerHTML = `<span class="account-pill ${!activeAccountFilter ? 'active' : ''}" onclick="setAccountFilter(null)">All</span>`
+    + state.accounts.map(a =>
+        `<span class="account-pill ${activeAccountFilter === a.id ? 'active' : ''}" onclick="setAccountFilter('${a.id}')">${a.company}</span>`
+      ).join('');
+}
+
+function setAccountFilter(id) {
+  activeAccountFilter = id;
+  renderAccountFilter();
+  renderVisits();
+}
+
+// ═══════════════════════════════════════════════════
+// POST-VISIT REPORTS
+// ═══════════════════════════════════════════════════
+function savePostVisit() {
+  const accountId = document.getElementById('pv-account').value;
+  const date      = document.getElementById('pv-date').value;
+  if (!accountId || !date) { alert('Account and date required'); return; }
+
+  const actionsRaw = document.getElementById('pv-actions').value;
+  const actions = actionsRaw.split('\n').filter(l => l.trim()).map(line => {
+    const parts = line.split('|').map(s => s.trim());
+    return { id: uid(), text: parts[0] || line, owner: parts[1] || '', due: parts[2] || '', done: false };
+  });
+
+  const report = {
+    id: uid(),
+    accountId,
+    date,
+    contact: document.getElementById('pv-contact').value,
+    discussion: document.getElementById('pv-discussion').value,
+    intel: document.getElementById('pv-intel').value,
+    opportunities: document.getElementById('pv-opportunities').value,
+    actions,
+    rating: document.getElementById('pv-rating').value,
+    createdAt: new Date().toISOString()
+  };
+
+  // Mark matching visit as Completed
+  const v = state.visits.find(v => v.accountId === accountId && v.date === date);
+  if (v) v.status = 'Completed';
+
+  state.reports.push(report);
+  save();
+  closeModal('postVisit');
+  ['pv-contact','pv-discussion','pv-intel','pv-opportunities','pv-actions'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('pv-account').value = '';
+}
+
+// ═══════════════════════════════════════════════════
+// ACCOUNT DETAIL / HISTORY
+// ═══════════════════════════════════════════════════
+function viewAccountDetail(accountId) {
+  detailAccountId = accountId;
+  const acc = state.accounts.find(a => a.id === accountId);
+  if (!acc) return;
+  document.getElementById('detailTitle').textContent = acc.company + ' — Visit History';
+
+  const reports = state.reports
+    .filter(r => r.accountId === accountId)
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const openActions = reports.flatMap(r => (r.actions || []).map(ac => ({ ...ac, reportDate: r.date })))
+    .filter(ac => !ac.done);
+
+  let html = '';
+
+  // Account info strip
+  html += `<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:18px;">
+    <div class="stat" style="padding:12px 14px;"><div class="stat-label">Total Visits</div><div class="stat-value blue">${reports.length}</div></div>
+    <div class="stat" style="padding:12px 14px;"><div class="stat-label">Open Actions</div><div class="stat-value amber">${openActions.length}</div></div>
+    <div class="stat" style="padding:12px 14px;"><div class="stat-label">Last Visit</div><div class="stat-value" style="font-size:14px;">${reports[0] ? formatDate(reports[0].date) : '—'}</div></div>
+  </div>`;
+
+  // Open actions
+  if (openActions.length) {
+    html += `<div style="margin-bottom:18px;">
+      <div class="card-title" style="margin-bottom:10px;">⚠ Open Actions to Follow Up</div>
+      ${openActions.map(ac => `
+        <div class="action-item">
+          <div class="action-check" onclick="toggleAction('${ac.id}', '${accountId}')"></div>
+          <div class="action-text">
+            ${ac.text}
+            <div class="action-meta">${ac.owner ? 'Owner: '+ac.owner : ''} ${ac.due ? ' · Due: '+ac.due : ''} · From visit: ${formatDate(ac.reportDate)}</div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  }
+
+  // Timeline
+  if (reports.length) {
+    html += `<div class="card-title" style="margin-bottom:12px;">Visit History</div>
+    <div class="timeline">`;
+    reports.forEach(r => {
+      html += `<div class="timeline-item">
+        <div class="timeline-dot"></div>
+        <div class="timeline-content">
+          <div class="timeline-date">${formatDate(r.date)} ${r.contact ? '· ' + r.contact : ''} ${r.rating ? '· '+r.rating : ''}</div>
+          <div class="timeline-body">
+            ${r.discussion ? `<div class="timeline-section"><div class="timeline-section-label">Discussion</div>${r.discussion}</div>` : ''}
+            ${r.intel ? `<div class="timeline-section"><div class="timeline-section-label">Intel</div>${r.intel}</div>` : ''}
+            ${r.opportunities ? `<div class="timeline-section"><div class="timeline-section-label">Opportunities</div>${r.opportunities}</div>` : ''}
+            ${r.actions && r.actions.length ? `<div class="timeline-section"><div class="timeline-section-label">Actions (${r.actions.filter(a=>!a.done).length} open)</div>
+              ${r.actions.map(a => `<div style="font-size:12px; color:${a.done ? 'var(--muted)' : 'var(--text)'}; text-decoration:${a.done ? 'line-through' : 'none'};">
+                ${a.done ? '✓' : '▸'} ${a.text} ${a.owner ? '('+a.owner+')' : ''} ${a.due ? '— '+a.due : ''}</div>`).join('')}
+            </div>` : ''}
+          </div>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  } else {
+    html += `<div class="empty"><p>No visit reports yet for this account.</p></div>`;
+  }
+
+  document.getElementById('detailContent').innerHTML = html;
+  openModal('accountDetail');
+}
+
+function planVisitFromDetail() {
+  closeModal('accountDetail');
+  populateAccountDropdowns();
+  if (detailAccountId) {
+    document.getElementById('v-account').value = detailAccountId;
+    loadAccountContext(detailAccountId);
+  }
+  openModal('addVisit');
+}
+
+function toggleAction(actionId, accountId) {
+  state.reports.forEach(r => {
+    if (r.accountId === accountId) {
+      const ac = (r.actions || []).find(a => a.id === actionId);
+      if (ac) ac.done = !ac.done;
+    }
+  });
+  save();
+  viewAccountDetail(accountId);
+  renderActions();
+}
+
+// ═══════════════════════════════════════════════════
+// ACTIONS BOARD
+// ═══════════════════════════════════════════════════
+function renderActions() {
+  const board = document.getElementById('actionsBoard');
+  const dashBoard = document.getElementById('dashActions');
+
+  const allActions = state.reports.flatMap(r => {
+    const acc = state.accounts.find(a => a.id === r.accountId);
+    return (r.actions || []).map(ac => ({ ...ac, reportDate: r.date, accountId: r.accountId, accountName: acc ? acc.company : 'Unknown' }));
+  });
+
+  const open = allActions.filter(a => !a.done);
+  const done = allActions.filter(a => a.done);
+
+  if (!open.length && !done.length) {
+    board.innerHTML = `<div class="empty"><p>No actions yet. Add post-visit reports to generate actions.</p></div>`;
+    dashBoard.innerHTML = `<div class="empty" style="padding:24px;"><p>No open actions.</p></div>`;
+    return;
+  }
+
+  // Group open by account
+  const byAccount = {};
+  open.forEach(a => {
+    if (!byAccount[a.accountName]) byAccount[a.accountName] = [];
+    byAccount[a.accountName].push(a);
+  });
+
+  let html = '';
+  Object.entries(byAccount).forEach(([company, actions]) => {
+    html += `<div style="margin-bottom:18px;">
+      <div style="font-size:12px; font-weight:600; color:var(--blue); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">${company}</div>
+      ${actions.map(a => `
+        <div class="action-item">
+          <div class="action-check" onclick="toggleAction('${a.id}','${a.accountId}')"></div>
+          <div class="action-text">
+            ${a.text}
+            <div class="action-meta">${a.owner ? 'Owner: '+a.owner : ''} ${a.due ? ' · Due: '+a.due : ''} · From: ${formatDate(a.reportDate)}</div>
+          </div>
+          <span class="badge badge-open">Open</span>
+        </div>`).join('')}
+    </div>`;
+  });
+
+  if (done.length) {
+    html += `<div class="divider"></div>
+      <div style="font-size:12px; font-weight:600; color:var(--muted); margin-bottom:8px;">Completed (${done.length})</div>
+      ${done.slice(0, 5).map(a => `
+        <div class="action-item" style="opacity:0.6;">
+          <div class="action-check done"></div>
+          <div class="action-text done-text">${a.text} — ${a.accountName}
+            <div class="action-meta">${formatDate(a.reportDate)}</div>
+          </div>
+        </div>`).join('')}`;
+  }
+
+  board.innerHTML = html;
+
+  // Dashboard preview (top 4 open)
+  if (!open.length) {
+    dashBoard.innerHTML = `<div class="empty" style="padding:24px;"><p>No open actions 🎉</p></div>`;
+  } else {
+    dashBoard.innerHTML = open.slice(0, 4).map(a => `
+      <div class="action-item">
+        <div class="action-check" onclick="toggleAction('${a.id}','${a.accountId}')"></div>
+        <div class="action-text">
+          <strong>${a.accountName}</strong> · ${a.text}
+          <div class="action-meta">${a.due ? 'Due: '+a.due : 'No due date'}</div>
+        </div>
+      </div>`).join('');
+    if (open.length > 4) dashBoard.innerHTML += `<div style="text-align:center; margin-top:8px;"><button class="btn btn-ghost" onclick="showTab('actions')">View all ${open.length} actions →</button></div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════
+function renderDashboard() {
+  const today = new Date();
+  const upcoming = state.visits
+    .filter(v => new Date(v.date) >= today && v.status !== 'Completed')
+    .sort((a,b) => new Date(a.date) - new Date(b.date));
+
+  const confirmed = state.visits.filter(v => v.status === 'Confirmed' && new Date(v.date) >= today).length;
+  const openActions = state.reports.flatMap(r => r.actions || []).filter(a => !a.done).length;
+
+  document.getElementById('summaryStrip').innerHTML = `
+    <div class="stat"><div class="stat-label">Total Accounts</div><div class="stat-value blue">${state.accounts.length}</div></div>
+    <div class="stat"><div class="stat-label">Upcoming Visits</div><div class="stat-value">${upcoming.length}</div></div>
+    <div class="stat"><div class="stat-label">Confirmed</div><div class="stat-value green">${confirmed}</div></div>
+    <div class="stat"><div class="stat-label">Open Actions</div><div class="stat-value amber">${openActions}</div></div>
+    <div class="stat"><div class="stat-label">Total Reports</div><div class="stat-value">${state.reports.length}</div></div>
+  `;
+
+  const uv = document.getElementById('upcomingVisits');
+  if (!upcoming.length) {
+    uv.innerHTML = `<div class="empty" style="padding:24px;"><p>No upcoming visits planned.</p></div>`;
+  } else {
+    uv.innerHTML = upcoming.slice(0, 5).map(v => {
+      const acc = state.accounts.find(a => a.id === v.accountId);
+      const statusClass = { Confirmed: 'badge-confirmed', Pending: 'badge-pending', TBC: 'badge-tbc' }[v.status] || 'badge-tbc';
+      return `<div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border);">
+        <div style="font-family:'DM Mono',monospace; font-size:11px; color:var(--muted); min-width:70px;">${formatDate(v.date)}</div>
+        <div style="flex:1;">
+          <strong style="font-size:13px;">${acc ? acc.company : '—'}</strong>
+          <div class="text-muted">${v.purpose || ''}</div>
+        </div>
+        <span class="badge ${statusClass}">${v.status}</span>
+      </div>`;
+    }).join('');
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// EXPORT EXCEL FOR PAUL
+// ═══════════════════════════════════════════════════
+function exportExcel() {
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: Visit Schedule
+  const today = new Date();
+  const scheduleData = [
+    ['#', 'Date', 'Company', 'Location', 'Contact', 'Title', 'Visit Purpose', 'Status', 'Objectives'],
+    ...state.visits
+      .sort((a,b) => new Date(a.date) - new Date(b.date))
+      .map((v, i) => {
+        const acc = state.accounts.find(a => a.id === v.accountId);
+        return [
+          i + 1,
+          formatDate(v.date),
+          acc ? acc.company : '',
+          acc ? acc.location : '',
+          v.contact || (acc ? acc.contact : ''),
+          v.ctitle || (acc ? acc.title : ''),
+          v.purpose || '',
+          v.status,
+          [v.obj1, v.obj2].filter(Boolean).join(' | ')
+        ];
+      })
+  ];
+  const ws1 = XLSX.utils.aoa_to_sheet(scheduleData);
+  ws1['!cols'] = [5,13,22,13,20,22,30,12,35].map(w => ({ wch: w }));
+  XLSX.utils.book_append_sheet(wb, ws1, 'Visit Schedule');
+
+  // Sheet 2: Open Actions
+  const actionsData = [
+    ['Account', 'Action', 'Owner', 'Due Date', 'Status', 'From Visit'],
+    ...state.reports.flatMap(r => {
+      const acc = state.accounts.find(a => a.id === r.accountId);
+      return (r.actions || []).map(ac => [
+        acc ? acc.company : '',
+        ac.text,
+        ac.owner || '',
+        ac.due || '',
+        ac.done ? 'Done' : 'Open',
+        formatDate(r.date)
+      ]);
+    })
+  ];
+  const ws2 = XLSX.utils.aoa_to_sheet(actionsData);
+  ws2['!cols'] = [22,35,15,12,8,13].map(w => ({ wch: w }));
+  XLSX.utils.book_append_sheet(wb, ws2, 'Open Actions');
+
+  // Sheet 3: Visit Reports
+  const reportsData = [
+    ['Date', 'Company', 'Contact', 'Discussion', 'Customer Intel', 'Opportunities', 'Rating'],
+    ...state.reports
+      .sort((a,b) => new Date(b.date) - new Date(a.date))
+      .map(r => {
+        const acc = state.accounts.find(a => a.id === r.accountId);
+        return [
+          formatDate(r.date),
+          acc ? acc.company : '',
+          r.contact || '',
+          r.discussion || '',
+          r.intel || '',
+          r.opportunities || '',
+          r.rating || ''
+        ];
+      })
+  ];
+  const ws3 = XLSX.utils.aoa_to_sheet(reportsData);
+  ws3['!cols'] = [13,22,20,40,35,35,15].map(w => ({ wch: w }));
+  XLSX.utils.book_append_sheet(wb, ws3, 'Visit Reports');
+
+  const month = new Date().toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }).replace(' ', '_');
+  XLSX.writeFile(wb, `SBO_Visit_Report_Quang_${month}.xlsx`);
+}
+
+function exportVisitBrief() {
+  saveVisit();
+  const accountId = document.getElementById('v-account') ? document.getElementById('v-account').value : null;
+  if (!accountId) return;
+
+  const acc = state.accounts.find(a => a.id === accountId);
+  const date = document.getElementById('v-date').value;
+  const reports = state.reports.filter(r => r.accountId === accountId).sort((a,b) => new Date(b.date)-new Date(a.date));
+  const openActions = reports.flatMap(r => (r.actions||[]).filter(a=>!a.done).map(a=>({...a, reportDate: r.date})));
+
+  const wb = XLSX.utils.book_new();
+  const rows = [
+    ['VISIT BRIEF — SBOEVN', '', '', ''],
+    ['BD Manager:', 'Quang Nguyen', 'Date prepared:', new Date().toLocaleDateString('en-GB')],
+    ['', '', '', ''],
+    ['VISIT DETAILS', '', '', ''],
+    ['Account:', acc ? acc.company : '', 'Visit Date:', formatDate(date)],
+    ['Contact:', document.getElementById('v-contact').value, 'Title:', document.getElementById('v-ctitle').value],
+    ['Location:', acc ? acc.location : '', 'Status:', document.getElementById('v-status').value],
+    ['', '', '', ''],
+    ['OBJECTIVES', '', '', ''],
+    ['Primary:', document.getElementById('v-obj1').value, '', ''],
+    ['Secondary:', document.getElementById('v-obj2').value, '', ''],
+    ['', '', '', ''],
+    ['AGENDA', '', '', ''],
+    ['', document.getElementById('v-agenda').value || '1. Introduction & SBO capability overview\n2. Customer update\n3. SBO product relevance\n4. AVL/VMS status\n5. Next steps', '', ''],
+  ];
+
+  if (openActions.length) {
+    rows.push(['', '', '', '']);
+    rows.push(['⚠ PENDING ACTIONS TO FOLLOW UP', '', '', '']);
+    openActions.forEach(a => rows.push(['▸', a.text, a.owner || '', a.due || '']));
+  }
+
+  if (reports.length) {
+    rows.push(['', '', '', '']);
+    rows.push(['PREVIOUS VISIT HISTORY', '', '', '']);
+    reports.slice(0,3).forEach(r => {
+      rows.push([formatDate(r.date), r.discussion || '', '', '']);
+      if (r.intel) rows.push(['Intel:', r.intel, '', '']);
+      if (r.opportunities) rows.push(['Opportunity:', r.opportunities, '', '']);
+      rows.push(['', '', '', '']);
+    });
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [18, 40, 18, 25].map(w => ({ wch: w }));
+  XLSX.utils.book_append_sheet(wb, ws, 'Visit Brief');
+  XLSX.writeFile(wb, `SBO_Visit_Brief_${(acc ? acc.company : 'Visit').replace(/\s/g,'_')}_${date}.xlsx`);
+}
+
+// ═══════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch(e) { return dateStr; }
+}
+
+function renderAll() {
+  renderDashboard();
+  renderAccounts();
+  renderVisits();
+  renderActions();
+}
+
+// ═══════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════
+loadLocal();
+parseTokenFromHash();
+restoreToken();
+renderAll();
+</script>
+</body>
+</html>
